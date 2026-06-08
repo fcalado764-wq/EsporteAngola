@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="pt-AO">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Gestão Equipa Andebol</title>
+</head>
+<body>
+  <script>
+    window.location.href = '/login.html';
+  </script>
+</body>
+</html>
+      <symbol id="icon-dashboard" viewBox="0 0 24 24">
+        <path d="M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z" />
+      </symbol>
+      <symbol id="icon-users" viewBox="0 0 24 24">
+        <path d="M16 11c1.66 0 3-1.57 3-3.5S17.66 4 16 4s-3 1.57-3 3.5 1.34 3.5 3 3.5ZM8 11c1.66 0 3-1.57 3-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11Zm0 2c-2.67 0-5 1.35-5 3v2h10v-2c0-1.65-2.33-3-5-3Zm8 0c-.42 0-.83.04-1.22.12 1.35.86 2.22 2.06 2.22 3.38V18h4v-2c0-1.65-2.33-3-5-3Z" />
+      </symbol>
+      <symbol id="icon-calendar" viewBox="0 0 24 24">
+        <path d="M7 2h2v3h6V2h2v3h3v17H4V5h3V2Zm12 8H5v10h14V10Z" />
+      </symbol>
+      <symbol id="icon-chart" viewBox="0 0 24 24">
+        <path d="M5 21H3V3h2v18Zm6 0H9V9h2v12Zm6 0h-2V5h2v16Zm4 0h-2v-8h2v8Z" />
+      </symbol>
+      <symbol id="icon-file" viewBox="0 0 24 24">
+        <path d="M6 2h8l5 5v15H6V2Zm7 1.8V8h4.2L13 3.8ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z" />
+      </symbol>
+      <symbol id="icon-brain" viewBox="0 0 24 24">
+        <path d="M8.5 3A4.5 4.5 0 0 0 4 7.5v.2A4 4 0 0 0 2 11a4.1 4.1 0 0 0 2.1 3.6A4 4 0 0 0 8 20h1V3h-.5Zm7 0H15v17h1a4 4 0 0 0 3.9-5.4A4.1 4.1 0 0 0 22 11a4 4 0 0 0-2-3.3v-.2A4.5 4.5 0 0 0 15.5 3Z" />
+      </symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
+      </symbol>
+      <symbol id="icon-download" viewBox="0 0 24 24">
+        <path d="M11 3h2v10l3.5-3.5 1.4 1.4L12 16.8l-5.9-5.9 1.4-1.4L11 13V3ZM5 19h14v2H5v-2Z" />
+      </symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24">
+        <path d="M3 20 21 12 3 4v6l11 2-11 2v6Z" />
+      </symbol>
+    </svg>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegacao principal">
+        <div class="brand">
+          <div class="brand-mark">SL</div>
+          <div>
+            <p class="eyebrow">Sporting Luanda</p>
+            <h1>Equipa Sub-20</h1>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" id="navTabs">
+          <button class="active" data-tab="overview" type="button">
+            <svg><use href="#icon-dashboard"></use></svg>
+            Visao geral
+          </button>
+          <button data-tab="athletes" type="button">
+            <svg><use href="#icon-users"></use></svg>
+            Atletas
+          </button>
+          <button data-tab="trainings" type="button">
+            <svg><use href="#icon-calendar"></use></svg>
+            Treinos
+          </button>
+          <button data-tab="stats" type="button">
+            <svg><use href="#icon-chart"></use></svg>
+            Estatisticas
+          </button>
+          <button data-tab="reports" type="button">
+            <svg><use href="#icon-file"></use></svg>
+            Relatorio
+          </button>
+          <button data-tab="assistant" type="button">
+            <svg><use href="#icon-brain"></use></svg>
+            IA Groq
+          </button>
+          <button data-tab="account" type="button">
+            <svg><use href="#icon-users"></use></svg>
+            Conta treinador
+          </button>
+          <button data-tab="admin" type="button">
+            <svg><use href="#icon-dashboard"></use></svg>
+            Admin
+          </button>
+        </nav>
+
+        <div class="season-box">
+          <span>Epoca 2025/26</span>
+          <strong>Treinador Mario Figueiredo</strong>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Dashboard operacional</p>
+            <h2>Gestao de equipa de andebol</h2>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button" id="refreshButton" type="button" title="Atualizar dados">
+              <svg><use href="#icon-dashboard"></use></svg>
+            </button>
+            <button class="primary-button" id="quickReportButton" type="button">
+              <svg><use href="#icon-download"></use></svg>
+              Gerar PDF
+            </button>
+          </div>
+        </header>
+
+        <section class="tab-panel active" id="overview">
+          <div class="metrics-grid" id="metricsGrid"></div>
+
+          <div class="overview-layout">
+            <article class="panel next-training" id="nextTraining"></article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Risco e acompanhamento</p>
+                  <h3>Alertas inteligentes</h3>
+                </div>
+              </div>
+              <div class="alert-list" id="alertList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="athletes">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Plantel</p>
+              <h3>Atletas registados</h3>
+            </div>
+            <button class="primary-button" data-open-form="athleteForm" type="button">
+              <svg><use href="#icon-plus"></use></svg>
+              Novo atleta
+            </button>
+          </div>
+
+          <form class="inline-form hidden" id="athleteForm">
+            <label>
+              Nome
+              <input name="name" placeholder="Ex: Mateus Luvualu" required />
+            </label>
+            <label>
+              Numero
+              <input name="number" type="number" min="1" max="99" placeholder="18" required />
+            </label>
+            <label>
+              Posicao
+              <select name="position" required>
+                <option>Central</option>
+                <option>Pivot</option>
+                <option>Ponta esquerdo</option>
+                <option>Ponta direito</option>
+                <option>Lateral esquerdo</option>
+                <option>Lateral direito</option>
+                <option>Guarda-redes</option>
+              </select>
+            </label>
+            <label>
+              Idade
+              <input name="age" type="number" min="10" max="60" placeholder="19" />
+            </label>
+            <button class="primary-button" type="submit">Guardar</button>
+          </form>
+
+          <div class="athlete-grid" id="athleteGrid"></div>
+        </section>
+
+        <section class="tab-panel" id="trainings">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Calendario tecnico</p>
+              <h3>Treinos e presencas</h3>
+            </div>
+            <button class="primary-button" data-open-form="trainingForm" type="button">
+              <svg><use href="#icon-plus"></use></svg>
+              Novo treino
+            </button>
+          </div>
+
+          <form class="inline-form hidden" id="trainingForm">
+            <label>
+              Data
+              <input name="date" type="date" required />
+            </label>
+            <label>
+              Hora
+              <input name="time" type="time" required />
+            </label>
+            <label>
+              Titulo
+              <input name="title" placeholder="Treino tactico" required />
+            </label>
+            <label>
+              Foco
+              <input name="focus" placeholder="Defesa 6:0" required />
+            </label>
+            <label>
+              Convocados
+              <input name="invited" type="number" min="0" placeholder="16" />
+            </label>
+            <button class="primary-button" type="submit">Agendar</button>
+          </form>
+
+          <div class="table-panel">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Treino</th>
+                  <th>Foco</th>
+                  <th>Estado</th>
+                  <th>Presencas</th>
+                  <th>Accao</th>
+                </tr>
+              </thead>
+              <tbody id="trainingTable"></tbody>
+            </table>
+          </div>
+
+          <article class="panel attendance-panel hidden" id="attendancePanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Validacao do treino</p>
+                <h3 id="attendanceTitle">Marcar presencas</h3>
+              </div>
+              <button class="secondary-button" id="closeAttendanceButton" type="button">Fechar</button>
+            </div>
+            <form id="attendanceForm">
+              <input name="trainingId" type="hidden" />
+              <label>
+                Notas do treino
+                <input name="notes" placeholder="Ex: boa intensidade, controlar carga dos laterais..." />
+              </label>
+              <div class="attendance-list" id="attendanceList"></div>
+              <button class="primary-button" type="submit">Confirmar treino realizado</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="tab-panel" id="stats">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Performance</p>
+              <h3>Estatisticas da equipa</h3>
+            </div>
+          </div>
+          <div class="stats-layout">
+            <article class="panel">
+              <h3>Golos por atleta</h3>
+              <div class="bar-list" id="goalsChart"></div>
+            </article>
+            <article class="panel">
+              <h3>Assiduidade por atleta</h3>
+              <div class="bar-list" id="attendanceChart"></div>
+            </article>
+            <article class="panel">
+              <h3>Assistencias</h3>
+              <div class="bar-list" id="assistsChart"></div>
+            </article>
+            <article class="panel">
+              <h3>Lista de risco</h3>
+              <div class="risk-list" id="riskList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="reports">
+          <div class="report-workspace">
+            <div>
+              <p class="eyebrow">PDFKit</p>
+              <h3>Relatorio de desempenho</h3>
+              <p class="muted">
+                Exporta um resumo tecnico com indicadores gerais, top marcadores, alertas e treinos recentes.
+              </p>
+            </div>
+            <div class="report-actions">
+              <select id="reportType">
+                <option>Relatorio colectivo da equipa</option>
+                <option>Relatorio individual por atleta</option>
+                <option>Relatorio de assiduidade</option>
+                <option>Relatorio estatistico completo</option>
+              </select>
+              <button class="primary-button" id="downloadReportButton" type="button">
+                <svg><use href="#icon-download"></use></svg>
+                Baixar PDF
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="assistant">
+          <div class="assistant-layout">
+            <div class="assistant-main">
+              <p class="eyebrow">Groq LLaMA</p>
+              <h3>Chat com o treinador</h3>
+              <div class="prompt-row">
+                <button data-prompt="Analisa a queda de rendimento do Andre Kinzungu." type="button">Analise individual</button>
+                <button data-prompt="Sugere um treino para melhorar finalizacao e transicao defensiva." type="button">Sugestao de treino</button>
+                <button data-prompt="Gera um resumo tecnico da equipa para esta semana." type="button">Resumo semanal</button>
+              </div>
+              <div class="chat-log" id="chatLog"></div>
+              <form class="chat-form" id="chatForm">
+                <input name="question" placeholder="Pergunta sobre atletas, treinos, estatisticas ou alertas..." required />
+                <button class="primary-button" type="submit" title="Enviar pergunta">
+                  <svg><use href="#icon-send"></use></svg>
+                  Enviar
+                </button>
+              </form>
+            </div>
+            <aside class="assistant-context">
+              <p class="eyebrow">Exemplos</p>
+              <ul>
+                <li>Quem precisa de acompanhamento esta semana?</li>
+                <li>Que exercicios reduzem perdas de bola?</li>
+                <li>Qual atleta esta mais consistente?</li>
+                <li>Resume a assiduidade do plantel.</li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="account">
+          <div class="account-layout">
+            <article class="panel">
+              <p class="eyebrow">Supabase Auth futuramente</p>
+              <h3>Criar conta de treinador</h3>
+              <form class="stack-form" id="trainerAccountForm">
+                <label>
+                  Nome do treinador
+                  <input name="name" placeholder="Ex: Mario Figueiredo" required />
+                </label>
+                <label>
+                  Email
+                  <input name="email" type="email" placeholder="treinador@clube.ao" required />
+                </label>
+                <label>
+                  Palavra-passe
+                  <input name="password" type="password" minlength="6" placeholder="Minimo 6 caracteres" required />
+                </label>
+                <label>
+                  Equipa
+                  <select name="teamId" id="trainerTeamSelect"></select>
+                </label>
+                <button class="primary-button" type="submit">Criar conta</button>
+              </form>
+            </article>
+            <article class="panel">
+              <p class="eyebrow">Acessos</p>
+              <h3>Treinadores activos</h3>
+              <div class="coach-list" id="coachList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="admin">
+          <div class="admin-layout">
+            <article class="panel">
+              <p class="eyebrow">Diretor desportivo</p>
+              <h3>Adicionar nova equipa</h3>
+              <form class="stack-form" id="teamForm">
+                <label>
+                  Nome da equipa
+                  <input name="name" placeholder="Ex: Sporting Luanda" required />
+                </label>
+                <label>
+                  Escalao
+                  <input name="category" placeholder="Ex: Sub-17, Sub-20, Seniores" required />
+                </label>
+                <label>
+                  Epoca
+                  <input name="season" placeholder="2025/26" required />
+                </label>
+                <label>
+                  Treinador responsavel
+                  <input name="coach" placeholder="Nome do treinador" required />
+                </label>
+                <label>
+                  Local principal
+                  <input name="venue" placeholder="Pavilhao ou escola" required />
+                </label>
+                <button class="primary-button" type="submit">Adicionar equipa</button>
+              </form>
+            </article>
+            <article class="panel">
+              <p class="eyebrow">Clubes e escolas</p>
+              <h3>Equipas registadas</h3>
+              <div class="team-list" id="teamList"></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/js/app.js" type="module"></script>
+  </body>
+</html>

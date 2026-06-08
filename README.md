@@ -1,0 +1,57 @@
+# Bot de Gestao de Equipa de Andebol
+
+Dashboard e API para clubes, escolas e treinadores acompanharem atletas, treinos, assiduidade, estatisticas e relatorios de desempenho com apoio de IA via Groq.
+
+## Stack
+
+- Backend: Node.js + Express
+- Base de dados: Supabase/PostgreSQL
+- Frontend: HTML, CSS e JavaScript
+- IA: Groq API
+- Relatorios: PDFKit
+
+## Como correr localmente
+
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Depois abre:
+
+```text
+http://localhost:3000
+```
+
+Sem variaveis Supabase/Groq configuradas, a aplicacao usa dados mockados para demonstracao.
+
+## Funcionalidades incluidas
+
+- Dashboard com indicadores da equipa.
+- Registo e listagem de atletas.
+- Planeamento e historico de treinos.
+- Estatisticas de golos, assistencias, assiduidade e risco fisico.
+- Chat do treinador com IA, preparado para Groq.
+- Endpoint para gerar relatorio PDF.
+- Schema SQL inicial para Supabase em `database/schema.sql`.
+
+## Endpoints principais
+
+- `GET /api/health`
+- `GET /api/dashboard`
+- `GET /api/athletes`
+- `POST /api/athletes`
+- `GET /api/trainings`
+- `POST /api/trainings`
+- `GET /api/stats`
+- `POST /api/ai/chat`
+- `POST /api/reports/performance`
+
+## Proximos passos sugeridos
+
+1. Criar projeto no Supabase.
+2. Executar `database/schema.sql`.
+3. Colocar `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no `.env`.
+4. Criar chave Groq e preencher `GROQ_API_KEY`.
+5. Publicar o repositorio no GitHub.

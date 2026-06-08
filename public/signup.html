@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-AO">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar Conta - Bot Gestão Equipa Andebol</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 450px;
+      padding: 40px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      color: #111827;
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .logo {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #374151;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 10px;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .secondary-btn {
+      width: 100%;
+      padding: 12px 16px;
+      background: #f3f4f6;
+      color: #374151;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .secondary-btn:hover {
+      background: #e5e7eb;
+      border-color: #d1d5db;
+    }
+
+    .error-message {
+      background-color: #fee2e2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .success-message {
+      background-color: #dcfce7;
+      border: 1px solid #86efac;
+      color: #166534;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+
+    .info-box {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      color: #6b7280;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .auth-links {
+      text-align: center;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .auth-links p {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .auth-links a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .auth-links a:hover {
+      color: #5568d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🏐</div>
+      <h1>Criar Conta</h1>
+      <p>Registe-se para aceder ao sistema</p>
+    </div>
+
+    <div class="error-message" id="errorMessage"></div>
+    <div class="success-message" id="successMessage"></div>
+
+    <div class="info-box">
+      ℹ️ Após criar a conta, um administrador precisará aprová-la antes de poder aceder.
+    </div>
+
+    <form id="signupForm">
+      <div class="form-group">
+        <label for="name">Nome Completo</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          placeholder="ex: João Silva"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="ex: usuario@sportingluanda.ao"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="role">Tipo de Conta</label>
+        <select id="role" name="role" required>
+          <option value="">-- Selecione o tipo de conta --</option>
+          <option value="trainer">🎓 Treinador</option>
+          <option value="admin">👨‍💼 Diretor Desportivo</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Senha</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Mínimo 8 caracteres"
+          required
+          minlength="8"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirmar Senha</label>
+        <input
+          type="password"
+          id="confirmPassword"
+          name="confirmPassword"
+          placeholder="Confirme a senha"
+          required
+          minlength="8"
+        >
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Criando conta...</p>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Criar Conta</button>
+      <button type="button" class="secondary-btn" onclick="window.location.href='/login.html'">
+        Voltar ao Login
+      </button>
+    </form>
+
+    <div class="auth-links">
+      <p>Já tem conta?</p>
+      <a href="/login.html">Faça login aqui</a>
+    </div>
+  </div>
+
+  <script src="/js/auth.js"></script>
+  <script>
+    const form = document.getElementById('signupForm');
+    const errorMsg = document.getElementById('errorMessage');
+    const successMsg = document.getElementById('successMessage');
+    const loading = document.getElementById('loading');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.classList.add('show');
+      successMsg.classList.remove('show');
+    }
+
+    function showSuccess(message) {
+      successMsg.textContent = message;
+      successMsg.classList.add('show');
+      errorMsg.classList.remove('show');
+    }
+
+    function clearMessages() {
+      errorMsg.classList.remove('show');
+      successMsg.classList.remove('show');
+    }
+
+    function showLoading() {
+      loading.style.display = 'block';
+      submitBtn.disabled = true;
+    }
+
+    function hideLoading() {
+      loading.style.display = 'none';
+      submitBtn.disabled = false;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearMessages();
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const role = document.getElementById('role').value;
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (!name || name.length < 3) {
+        showError('Nome deve ter pelo menos 3 caracteres');
+        return;
+      }
+
+      if (!email.includes('@')) {
+        showError('Email inválido');
+        return;
+      }
+
+      if (!role) {
+        showError('Selecione um tipo de conta');
+        return;
+      }
+
+      if (password.length < 8) {
+        showError('Senha deve ter pelo menos 8 caracteres');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showError('As senhas não coincidem');
+        return;
+      }
+
+      showLoading();
+
+      try {
+        const response = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            role,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showSuccess('Conta criada com sucesso! Redirecionando para login em 3 segundos...');
+          setTimeout(() => {
+            window.location.href = '/login.html';
+          }, 3000);
+        } else {
+          showError(data.message || 'Erro ao criar conta');
+        }
+      } catch (err) {
+        showError('Erro ao conectar ao servidor: ' + err.message);
+      } finally {
+        hideLoading();
+      }
+    });
+
+    if (auth.isAuthenticated()) {
+      window.location.href = auth.getDashboardUrl();
+    }
+  </script>
+</body>
+</html>
