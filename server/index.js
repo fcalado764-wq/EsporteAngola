@@ -35,16 +35,18 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: error.message || "Erro interno do servidor" });
 });
 
-const server = app.listen(port, () => {
-  console.log(`Bot de Gestao de Equipa de Andebol em http://localhost:${port}`);
-});
-
-process.on("SIGTERM", () => {
-  console.log("SIGTERM recebido, encerrando gracefully...");
-  server.close(() => {
-    console.log("Servidor encerrado");
-    process.exit(0);
+if (!process.env.VERCEL) {
+  const server = app.listen(port, () => {
+    console.log(`Bot de Gestao de Equipa de Andebol em http://localhost:${port}`);
   });
-});
+
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM recebido, encerrando gracefully...");
+    server.close(() => {
+      console.log("Servidor encerrado");
+      process.exit(0);
+    });
+  });
+}
 
 export default app;
