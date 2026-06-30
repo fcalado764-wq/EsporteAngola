@@ -623,8 +623,9 @@
 
       <div class="grid">
         <div class="card" style="grid-column: 1 / -1;">
-          <div class="section-title">Adicionar Novo Atleta</div>
+          <div class="section-title" id="athleteFormTitle">Adicionar Novo Atleta</div>
           <form id="athleteForm" style="max-width: 500px;">
+            <input type="hidden" name="id">
             <div class="form-group">
               <label>Nome</label>
               <input type="text" name="name" placeholder="ex: Mateus Luvualu" required>
@@ -650,7 +651,8 @@
               <label>Idade</label>
               <input type="number" name="age" min="10" max="60" placeholder="19">
             </div>
-            <button type="submit" class="btn">Adicionar Atleta</button>
+            <button type="submit" class="btn" id="athleteSubmitButton">Adicionar Atleta</button>
+            <button type="button" class="btn btn-secondary" id="cancelAthleteEditButton" style="display: none; margin-left: 8px;">Cancelar edição</button>
           </form>
         </div>
       </div>
@@ -970,6 +972,8 @@
 
   <script src="/js/auth.js"></script>
   <script>
+    let cachedAthletes = [];
+
     function showTab(tabName) {
       const panels = document.querySelectorAll('.tab-panel');
       panels.forEach(p => p.classList.remove('active'));
@@ -1061,6 +1065,7 @@
     async function loadAthletes() {
       try {
         const athletes = await authenticatedFetch('/api/athletes').then(r => r.json());
+        cachedAthletes = athletes;
 
         document.getElementById('athletesTable').innerHTML = athletes.map((athlete, idx) => `
           <tr>
@@ -1073,6 +1078,8 @@
               <select onchange="changeAthleteStatus(${idx}, this.value)" class="badge" style="padding: 8px; border: none; border-radius: 4px; cursor: pointer;">
                 <option value="active" ${athlete.status === 'active' ? 'selected' : ''}>Ativo</option>
                 <option value="injured" ${athlete.status === 'injured' ? 'selected' : ''}>Lesionado</option>
+                <option value="suspended" ${athlete.status === 'suspended' ? 'selected' : ''}>Suspenso</option>
+                <option value="archived" ${athlete.status === 'archived' ? 'selected' : ''}>Arquivado</option>
               </select>
             </td>
             <td>
@@ -1082,6 +1089,57 @@
         `).join('') || '<tr><td colspan="7" style="text-align: center; color: #9ca3af;">Nenhum atleta registado</td></tr>';
       } catch (error) {
         console.error('Erro ao carregar atletas:', error);
+      }
+    }
+
+    function resetAthleteForm() {
+      const form = document.getElementById('athleteForm');
+      if (!form) return;
+      form.reset();
+      form.elements.id.value = '';
+      document.getElementById('athleteFormTitle').textContent = 'Adicionar Novo Atleta';
+      document.getElementById('athleteSubmitButton').textContent = 'Adicionar Atleta';
+      document.getElementById('cancelAthleteEditButton').style.display = 'none';
+    }
+
+    function editAthleteModal(index) {
+      const athlete = cachedAthletes[index];
+      const form = document.getElementById('athleteForm');
+      if (!athlete || !form) return;
+
+      form.elements.id.value = athlete.id;
+      form.elements.name.value = athlete.name || '';
+      form.elements.number.value = athlete.number || '';
+      form.elements.position.value = athlete.position || '';
+      form.elements.age.value = athlete.age || '';
+      document.getElementById('athleteFormTitle').textContent = `Editar Atleta - ${athlete.name}`;
+      document.getElementById('athleteSubmitButton').textContent = 'Guardar alterações';
+      document.getElementById('cancelAthleteEditButton').style.display = 'inline-block';
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      form.elements.name.focus();
+    }
+
+    async function changeAthleteStatus(index, status) {
+      const athlete = cachedAthletes[index];
+      if (!athlete) return;
+
+      try {
+        const response = await authenticatedFetch(`/api/athletes/${athlete.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status })
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || 'pedido falhou');
+        }
+
+        await loadAthletes();
+        loadDashboard();
+      } catch (error) {
+        alert('Erro ao alterar status: ' + error.message);
+        loadAthletes();
       }
     }
 
@@ -1250,21 +1308,32 @@
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData);
+        const athleteId = data.id;
+        delete data.id;
+        if (!data.age) delete data.age;
+
         try {
-          const response = await authenticatedFetch('/api/athletes', {
-            method: 'POST',
+          const response = await authenticatedFetch(athleteId ? `/api/athletes/${athleteId}` : '/api/athletes', {
+            method: athleteId ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
           });
+
           if (response.ok) {
-            alert('Atleta adicionado com sucesso!');
-            e.target.reset();
+            alert(athleteId ? 'Atleta actualizado com sucesso!' : 'Atleta adicionado com sucesso!');
+            resetAthleteForm();
             loadAthletes();
+            loadDashboard();
+          } else {
+            const error = await response.json().catch(() => ({}));
+            alert('Erro ao guardar atleta: ' + (error.error || 'pedido falhou'));
           }
         } catch (error) {
-          alert('Erro ao adicionar atleta: ' + error.message);
+          alert('Erro ao guardar atleta: ' + error.message);
         }
       });
+
+      document.getElementById('cancelAthleteEditButton')?.addEventListener('click', resetAthleteForm);
 
       document.getElementById('trainingForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();

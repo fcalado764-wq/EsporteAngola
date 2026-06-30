@@ -240,6 +240,48 @@ export async function createAthlete(input) {
   return mapAthlete(data);
 }
 
+export async function updateAthlete(id, input) {
+  const initials = input.name
+    ? input.name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : undefined;
+
+  if (!hasSupabaseConfig()) {
+    const index = athletes.findIndex((athlete) => athlete.id === id);
+    if (index === -1) {
+      throw new Error("Atleta nao encontrado");
+    }
+
+    athletes[index] = {
+      ...athletes[index],
+      ...input,
+      ...(initials ? { initials } : {})
+    };
+    return athletes[index];
+  }
+
+  const updatePayload = {};
+  if (input.name !== undefined) updatePayload.name = input.name;
+  if (initials !== undefined) updatePayload.initials = initials;
+  if (input.number !== undefined) updatePayload.number = input.number;
+  if (input.position !== undefined) updatePayload.position = input.position;
+  if (input.age !== undefined) updatePayload.age = input.age;
+  if (input.status !== undefined) updatePayload.status = input.status;
+
+  const supabase = getSupabase();
+  const { data, error } = await supabase.from("athletes").update(updatePayload).eq("id", id).select().single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return mapAthlete(data);
+}
+
 export async function listTrainings() {
   if (shouldUseMockFallback()) {
     return trainings;

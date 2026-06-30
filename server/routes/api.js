@@ -17,7 +17,8 @@ import {
   listMatchStats,
   listTeams,
   listTrainings,
-  registerCoach
+  registerCoach,
+  updateAthlete
 } from "../services/store.js";
 
 const router = Router();
@@ -28,6 +29,15 @@ const athleteSchema = z.object({
   position: z.string().min(2),
   age: z.coerce.number().int().min(10).max(60).optional()
 });
+
+const athleteUpdateSchema = athleteSchema
+  .extend({
+    status: z.enum(["active", "injured", "suspended", "archived"]).optional()
+  })
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, {
+    message: "Informe pelo menos um campo para actualizar"
+  });
 
 const trainingSchema = z.object({
   date: z.string().min(10),
@@ -101,6 +111,15 @@ router.post("/athletes", async (req, res, next) => {
   try {
     const input = athleteSchema.parse(req.body);
     res.status(201).json(await createAthlete(input));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put("/athletes/:id", async (req, res, next) => {
+  try {
+    const input = athleteUpdateSchema.parse(req.body);
+    res.json(await updateAthlete(req.params.id, input));
   } catch (error) {
     next(error);
   }
