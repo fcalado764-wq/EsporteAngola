@@ -373,6 +373,103 @@
       font-size: 14px;
     }
 
+    .chat-card {
+      max-width: 980px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .quick-prompts {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .quick-prompts .btn {
+      background: #eef2ff;
+      color: #4f46e5;
+      border: 1px solid #c7d2fe;
+    }
+
+    .quick-prompts .btn:hover {
+      background: #e0e7ff;
+    }
+
+    .chat-log {
+      height: 460px;
+      overflow-y: auto;
+      padding: 22px 24px;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .chat-message {
+      max-width: 78%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-bottom-right-radius: 5px;
+    }
+
+    .chat-message.ai {
+      align-self: flex-start;
+      background: white;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
+      border-bottom-left-radius: 5px;
+    }
+
+    .chat-message.error {
+      border-color: #fecaca;
+      background: #fff1f2;
+      color: #991b1b;
+    }
+
+    .chat-meta {
+      font-size: 12px;
+      font-weight: 700;
+      opacity: 0.72;
+      margin-bottom: 5px;
+    }
+
+    .chat-composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 16px 18px;
+      border-top: 1px solid #e5e7eb;
+      background: white;
+      align-items: end;
+    }
+
+    .chat-composer textarea {
+      min-height: 52px;
+      max-height: 130px;
+      resize: vertical;
+    }
+
+    .chat-composer .btn {
+      min-height: 52px;
+      padding-left: 22px;
+      padding-right: 22px;
+    }
+
     @media (max-width: 768px) {
       .sidebar {
         display: none;
@@ -380,6 +477,15 @@
       
       .container {
         margin-left: 0;
+      }
+
+      .chat-card,
+      .chat-message {
+        max-width: 100%;
+      }
+
+      .chat-composer {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -662,33 +768,23 @@
         <p>Analise equipas, treinadores, atletas, presencas, estatisticas e prioridades do clube</p>
       </div>
 
-      <div class="card">
-        <div class="section-title">Perguntas rápidas</div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button class="btn btn-sm" onclick="askAiQuick('Como diretor desportivo, quais equipas e atletas precisam de mais acompanhamento?')">Prioridades do clube</button>
-          <button class="btn btn-sm" onclick="askAiQuick('Que indicadores devo acompanhar semanalmente nas equipas?')">Indicadores semanais</button>
-          <button class="btn btn-sm" onclick="askAiQuick('Resume a situacao de presencas, riscos e rendimento em jogo.')">Resumo geral</button>
-          <button class="btn btn-sm" onclick="askAiQuick('Que melhorias devo adicionar ao sistema para clubes e escolas?')">Melhorias do sistema</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="section-title">Chat com IA</div>
-        <form id="aiForm">
-          <div class="form-group">
-            <label>Pergunta</label>
-            <textarea id="aiQuestion" rows="4" placeholder="Ex: Quais equipas precisam de reforco tecnico ou acompanhamento?" required></textarea>
+      <div class="card chat-card">
+        <div class="chat-header">
+          <div class="section-title">Chat com IA</div>
+          <div class="quick-prompts">
+            <button class="btn btn-sm" onclick="askAiQuick('Como diretor desportivo, quais equipas e atletas precisam de mais acompanhamento?')">Prioridades do clube</button>
+            <button class="btn btn-sm" onclick="askAiQuick('Que indicadores devo acompanhar semanalmente nas equipas?')">Indicadores semanais</button>
+            <button class="btn btn-sm" onclick="askAiQuick('Resume a situacao de presencas, riscos e rendimento em jogo.')">Resumo geral</button>
+            <button class="btn btn-sm" onclick="askAiQuick('Que melhorias devo adicionar ao sistema para clubes e escolas?')">Melhorias do sistema</button>
           </div>
-          <button type="submit" class="btn">Perguntar ao Groq</button>
+        </div>
+        <div id="aiMessages" class="chat-log" aria-live="polite"></div>
+        <form id="aiForm" class="chat-composer">
+          <textarea id="aiQuestion" rows="2" placeholder="Escreve a tua pergunta sobre equipas, treinadores, presencas, estatisticas ou relatorios..." required></textarea>
+          <button type="submit" class="btn">Enviar</button>
         </form>
       </div>
 
-      <div class="card">
-        <div class="section-title">Resposta da IA</div>
-        <div id="aiAnswer" style="white-space: pre-wrap; color: #374151; line-height: 1.6;">
-          Faz uma pergunta para receber uma analise administrativa e tecnica.
-        </div>
-      </div>
     </div>
 
     <!-- Relatórios -->
@@ -958,27 +1054,64 @@
 
     document.getElementById('aiForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      askAiQuick(document.getElementById('aiQuestion').value);
+      sendAiMessage(document.getElementById('aiQuestion').value);
     });
 
+    function addAiMessage(role, text, options = {}) {
+      const messagesEl = document.getElementById('aiMessages');
+      if (!messagesEl) return null;
+
+      const messageEl = document.createElement('div');
+      messageEl.className = `chat-message ${role}${options.error ? ' error' : ''}`;
+      const author = role === 'user' ? 'Diretor' : 'Assistente IA';
+      messageEl.innerHTML = `<div class="chat-meta">${author}</div><div>${text}</div>`;
+      messagesEl.appendChild(messageEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return messageEl;
+    }
+
+    function updateAiMessage(messageEl, text, options = {}) {
+      if (!messageEl) return;
+      if (options.error) messageEl.classList.add('error');
+      const body = messageEl.querySelector('div:last-child');
+      if (body) body.textContent = text;
+      const messagesEl = document.getElementById('aiMessages');
+      if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
     async function askAiQuick(question) {
-      const answerEl = document.getElementById('aiAnswer');
+      sendAiMessage(question);
+    }
+
+    async function sendAiMessage(question) {
       const questionEl = document.getElementById('aiQuestion');
-      if (questionEl) questionEl.value = question;
-      answerEl.textContent = 'A analisar dados do clube...';
+      const cleanQuestion = (question || '').trim();
+      if (!cleanQuestion) return;
+
+      if (questionEl) questionEl.value = '';
+      addAiMessage('user', cleanQuestion);
+      const loadingEl = addAiMessage('ai', 'A analisar os dados do clube...');
 
       try {
         const response = await authenticatedFetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question })
+          body: JSON.stringify({ question: cleanQuestion })
         });
         const result = await response.json();
-        answerEl.textContent = `[${result.provider}]\n\n${result.answer}`;
+        if (!response.ok) {
+          throw new Error(result.error || 'pedido falhou');
+        }
+        updateAiMessage(loadingEl, result.answer || 'Nao recebi resposta da IA.');
       } catch (error) {
-        answerEl.textContent = 'Erro ao consultar IA: ' + error.message;
+        updateAiMessage(loadingEl, 'Erro ao consultar IA: ' + error.message, { error: true });
       }
     }
+
+    addAiMessage(
+      'ai',
+      'Ola, diretor. Pergunta-me sobre equipas, treinadores, atletas, presencas, estatisticas, riscos e prioridades do clube.'
+    );
   </script>
 </body>
 </html>

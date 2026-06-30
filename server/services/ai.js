@@ -68,6 +68,29 @@ function buildLocalAnswer(question, context) {
   const topGamePerformer = matchStatsSummary[0];
   const goalkeeperStats = matchStatsSummary.filter((row) => row.saves > 0).sort((a, b) => b.saves - a.saves);
   const riskNames = stats.riskList.map((risk) => `${risk.name} (${risk.reason})`);
+  const activeCoaches = coaches.filter((coach) => coach.status === "active").map((coach) => coach.name);
+  const asksCount =
+    lowerQuestion.includes("quantos") ||
+    lowerQuestion.includes("quantas") ||
+    lowerQuestion.includes("total") ||
+    lowerQuestion.includes("numero") ||
+    lowerQuestion.includes("número");
+
+  if (asksCount && (lowerQuestion.includes("atleta") || lowerQuestion.includes("jogador"))) {
+    return `A equipa tem ${athletes.length} atletas registados.
+Estado do grupo: ${athletes.filter((athlete) => athlete.status === "active").length} activos, ${athletes.filter((athlete) => athlete.status === "injured").length} lesionado(s) e ${athletes.filter((athlete) => athlete.status === "suspended").length} suspenso(s).
+Assiduidade media actual: ${context.dashboard.metrics.attendanceAverage}%.`;
+  }
+
+  if (asksCount && lowerQuestion.includes("treino")) {
+    return `Existem ${trainings.length} treinos registados: ${completedTrainings.length} realizados/validados e ${plannedTrainings.length} agendado(s).
+Para melhorar os relatórios da IA, valida cada treino realizado e marca a presença dos atletas no fim da sessão.`;
+  }
+
+  if (asksCount && lowerQuestion.includes("equipa")) {
+    return `Existem ${teams.length} equipas registadas: ${teams.map((item) => `${item.name} ${item.category}`).join(", ") || "sem equipas registadas"}.
+Treinadores activos: ${activeCoaches.join(", ") || "ainda sem treinadores activos associados"}.`;
+  }
 
   if (mentionedAthlete) {
     const athleteAttendance = summarizeAttendanceForAthlete(mentionedAthlete, attendance, trainings);
@@ -133,7 +156,7 @@ Prioridades: ${riskNames.join(", ") || "manter consistencia do grupo"}. O relato
 
   if (lowerQuestion.includes("equipa") || lowerQuestion.includes("escalao") || lowerQuestion.includes("admin") || lowerQuestion.includes("diretor")) {
     return `Painel do diretor desportivo: existem ${teams.length} equipas registadas (${teams.map((item) => `${item.name} ${item.category}`).join(", ")}).
-Treinadores activos: ${coaches.filter((coach) => coach.status === "active").map((coach) => coach.name).join(", ")}.
+Treinadores activos: ${activeCoaches.join(", ") || "ainda sem treinadores activos associados"}.
 Boa pratica: cada equipa deve ter escalao, epoca, treinador responsavel e local principal de treino para que a IA consiga separar estatisticas por grupo.`;
   }
 
