@@ -39,6 +39,18 @@ create table if not exists public.trainings (
   status text not null default 'planned' check (status in ('planned', 'done', 'cancelled')),
   invited integer not null default 0,
   present integer,
+  completed_at timestamptz,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.trainer_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  team_id uuid references public.teams(id) on delete set null,
+  name text not null,
+  email text not null unique,
+  role text not null default 'trainer' check (role in ('trainer', 'admin')),
+  status text not null default 'active' check (status in ('active', 'inactive')),
   created_at timestamptz not null default now()
 );
 

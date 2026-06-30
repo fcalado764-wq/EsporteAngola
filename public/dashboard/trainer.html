@@ -554,6 +554,7 @@
           <table>
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Nome</th>
                 <th>Nº</th>
                 <th>Posição</th>
@@ -797,7 +798,10 @@
 
       const buttons = document.querySelectorAll('.sidebar-nav button');
       buttons.forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
+      const activeButton =
+        (typeof event !== 'undefined' ? event.target : null) ||
+        document.querySelector(`.sidebar-nav button[onclick="showTab('${tabName}')"]`);
+      activeButton?.classList.add('active');
 
       if (tabName === 'overview') {
         loadDashboard();
@@ -805,6 +809,10 @@
         loadAthletes();
       } else if (tabName === 'trainings') {
         loadTrainings();
+      } else if (tabName === 'attendance') {
+        loadAttendance();
+      } else if (tabName === 'stats') {
+        loadStats();
       }
     }
 
@@ -833,9 +841,17 @@
         document.getElementById('activeAthletes').textContent = activeAthletes;
         const injuredAthletes = athletes.filter(a => a.status === 'injured').length || 0;
         document.getElementById('injuredAthletes').textContent = injuredAthletes;
-        document.getElementById('monthTrainings').textContent = '0';
+        const trainings = await authenticatedFetch('/api/trainings').then(r => r.json()).catch(() => []);
+        document.getElementById('monthTrainings').textContent = trainings.length || 0;
 
-        document.getElementById('recentTrainingsBody').innerHTML = '<tr><td colspan="4" style="text-align: center; color: #9ca3af;">Sem treinos registados</td></tr>';
+        document.getElementById('recentTrainingsBody').innerHTML = trainings.slice(0, 5).map(training => `
+          <tr>
+            <td>${training.date}</td>
+            <td>${training.title}</td>
+            <td>${training.present ?? '-'}/${training.invited ?? '-'}</td>
+            <td><span class="badge ${training.status === 'done' ? 'active' : 'warning'}">${training.status === 'done' ? 'Realizado' : 'Agendado'}</span></td>
+          </tr>
+        `).join('') || '<tr><td colspan="4" style="text-align: center; color: #9ca3af;">Sem treinos registados</td></tr>';
 
         const alerts = (stats.riskList || []).slice(0, 3);
         if (alerts.length > 0) {
@@ -865,16 +881,24 @@
       try {
         const athletes = await authenticatedFetch('/api/athletes').then(r => r.json());
 
-        document.getElementById('athletesTable').innerHTML = athletes.map(athlete => `
+        document.getElementById('athletesTable').innerHTML = athletes.map((athlete, idx) => `
           <tr>
+            <td>${athlete.id || 'N/A'}</td>
             <td><strong>${athlete.name}</strong></td>
             <td>${athlete.number}</td>
             <td>${athlete.position}</td>
             <td>${athlete.age || '-'}</td>
-            <td><span class="badge ${athlete.status === 'active' ? 'active' : 'injured'}">${athlete.status === 'active' ? 'Ativo' : 'Lesionado'}</span></td>
-            <td><button class="btn btn-sm">Editar</button></td>
+            <td>
+              <select onchange="changeAthleteStatus(${idx}, this.value)" class="badge" style="padding: 8px; border: none; border-radius: 4px; cursor: pointer;">
+                <option value="active" ${athlete.status === 'active' ? 'selected' : ''}>Ativo</option>
+                <option value="injured" ${athlete.status === 'injured' ? 'selected' : ''}>Lesionado</option>
+              </select>
+            </td>
+            <td>
+              <button class="btn btn-sm" onclick="editAthleteModal(${idx})">Editar</button>
+            </td>
           </tr>
-        `).join('') || '<tr><td colspan="6" style="text-align: center; color: #9ca3af;">Nenhum atleta registado</td></tr>';
+        `).join('') || '<tr><td colspan="7" style="text-align: center; color: #9ca3af;">Nenhum atleta registado</td></tr>';
       } catch (error) {
         console.error('Erro ao carregar atletas:', error);
       }
@@ -882,11 +906,141 @@
 
     async function loadTrainings() {
       try {
-        const stats = await authenticatedFetch('/api/stats').then(r => r.json()).catch(() => ({ riskList: [] }));
+        const trainings = await authenticatedFetch('/api/trainings').then(r => r.json());
 
-        document.getElementById('trainingsTable').innerHTML = '<tr><td colspan="7" style="text-align: center; color: #9ca3af;">Sem treinos agendados</td></tr>';
+        document.getElementById('trainingsTable').innerHTML = trainings.map(training => `
+          <tr>
+            <td>${training.date}</td>
+            <td>${training.time}</td>
+            <td><strong>${training.title}</strong></td>
+            <td>${training.focus}</td>
+            <td>${training.present ?? '-'}/${training.invited ?? '-'}</td>
+            <td><span class="badge ${training.status === 'done' ? 'active' : 'warning'}">${training.status === 'done' ? 'Realizado' : 'Agendado'}</span></td>
+            <td><button class="btn btn-sm" onclick="openAttendance('${training.id}')">${training.status === 'done' ? 'Editar chamada' : 'Validar treino'}</button></td>
+          </tr>
+        `).join('') || '<tr><td colspan="7" style="text-align: center; color: #9ca3af;">Sem treinos agendados</td></tr>';
       } catch (error) {
         console.error('Erro ao carregar treinos:', error);
+      }
+    }
+
+    async function openAttendance(trainingId) {
+      showTab('attendance');
+      await loadAttendance(trainingId);
+    }
+
+    async function loadAttendance(selectedTrainingId = null) {
+      try {
+        const [trainings, athletes] = await Promise.all([
+          authenticatedFetch('/api/trainings').then(r => r.json()),
+          authenticatedFetch('/api/athletes').then(r => r.json())
+        ]);
+        const selectedTraining = trainings.find(t => t.id === selectedTrainingId) || trainings.find(t => t.status === 'planned') || trainings[0];
+
+        if (!selectedTraining) {
+          document.getElementById('attendanceList').innerHTML = 'Nenhum treino disponivel para presenca';
+          document.getElementById('attendanceHistoryBody').innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">Sem historico</td></tr>';
+          return;
+        }
+
+        const attendance = await authenticatedFetch(`/api/trainings/${selectedTraining.id}/attendance`).then(r => r.json()).catch(() => []);
+        const attendanceMap = new Map(attendance.map(record => [record.athleteId, record]));
+
+        document.getElementById('attendanceList').innerHTML = `
+          <form id="attendanceForm">
+            <input type="hidden" name="trainingId" value="${selectedTraining.id}">
+            <div class="form-group">
+              <label>Treino selecionado</label>
+              <select name="trainingSelector" onchange="loadAttendance(this.value)">
+                ${trainings.map(training => `<option value="${training.id}" ${training.id === selectedTraining.id ? 'selected' : ''}>${training.date} - ${training.title}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Notas do treino</label>
+              <input type="text" name="notes" value="${selectedTraining.notes || ''}" placeholder="Observacoes do treino">
+            </div>
+            ${athletes.map(athlete => {
+              const record = attendanceMap.get(athlete.id);
+              const status = record?.status || (athlete.status === 'injured' ? 'injured' : 'present');
+              return `
+                <div style="display: grid; grid-template-columns: 1fr 160px 1fr; gap: 10px; align-items: center; padding: 10px; border-bottom: 1px solid #e5e7eb;">
+                  <div><strong>${athlete.name}</strong><br><span style="color: #6b7280;">${athlete.position} #${athlete.number}</span></div>
+                  <select name="status-${athlete.id}">
+                    <option value="present" ${status === 'present' ? 'selected' : ''}>Presente</option>
+                    <option value="absent" ${status === 'absent' ? 'selected' : ''}>Falta</option>
+                    <option value="injured" ${status === 'injured' ? 'selected' : ''}>Lesao</option>
+                    <option value="excused" ${status === 'excused' ? 'selected' : ''}>Justificada</option>
+                  </select>
+                  <input type="text" name="notes-${athlete.id}" value="${record?.notes || ''}" placeholder="Nota">
+                </div>
+              `;
+            }).join('')}
+            <button type="submit" class="btn" style="margin-top: 16px;">Confirmar treino realizado</button>
+          </form>
+        `;
+
+        document.getElementById('attendanceForm').addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const form = event.target;
+          const payload = {
+            notes: form.notes.value,
+            attendance: athletes.map(athlete => ({
+              athleteId: athlete.id,
+              status: form[`status-${athlete.id}`].value,
+              notes: form[`notes-${athlete.id}`].value
+            }))
+          };
+          const response = await authenticatedFetch(`/api/trainings/${selectedTraining.id}/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (response.ok) {
+            alert('Treino validado e presencas guardadas!');
+            loadTrainings();
+            loadAttendance(selectedTraining.id);
+          }
+        });
+
+        const completed = trainings.filter(training => training.status === 'done');
+        document.getElementById('attendanceHistoryBody').innerHTML = completed.map(training => {
+          const present = training.present || 0;
+          const invited = training.invited || 0;
+          const absent = Math.max(invited - present, 0);
+          const rate = invited ? Math.round((present / invited) * 100) : 0;
+          return `
+            <tr>
+              <td>${training.date}</td>
+              <td>${training.title}</td>
+              <td>${present}</td>
+              <td>${absent}</td>
+              <td>${rate}%</td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">Sem historico</td></tr>';
+      } catch (error) {
+        console.error('Erro ao carregar presencas:', error);
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const [stats, athletes] = await Promise.all([
+          authenticatedFetch('/api/stats').then(r => r.json()),
+          authenticatedFetch('/api/athletes').then(r => r.json())
+        ]);
+        document.getElementById('topScorersChart').innerHTML = (stats.goalsByAthlete || []).slice(0, 5).map(row => `<p><strong>${row.name}</strong>: ${row.value} golos</p>`).join('');
+        document.getElementById('topAssistsChart').innerHTML = (stats.assistsByAthlete || []).slice(0, 5).map(row => `<p><strong>${row.name}</strong>: ${row.value} assistencias</p>`).join('');
+        document.getElementById('attendanceStatsBody').innerHTML = athletes.map(athlete => `
+          <tr>
+            <td><strong>${athlete.name}</strong></td>
+            <td>-</td>
+            <td>-</td>
+            <td>${athlete.attendanceRate || 0}%</td>
+          </tr>
+        `).join('');
+      } catch (error) {
+        console.error('Erro ao carregar estatisticas:', error);
       }
     }
 
@@ -951,7 +1105,7 @@
         e.preventDefault();
         try {
           const response = await authenticatedFetch('/api/reports/performance', {
-            method: 'GET'
+            method: 'POST'
           });
           if (response.ok) {
             const blob = await response.blob();

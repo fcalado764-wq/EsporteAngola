@@ -36,6 +36,13 @@ export async function buildPerformancePdf() {
   });
   doc.moveDown();
 
+  doc.fontSize(14).text("Assiduidade por atleta");
+  doc.moveDown(0.4);
+  stats.attendanceByAthlete.slice(0, 8).forEach((row, index) => {
+    doc.fontSize(10).text(`${index + 1}. ${row.name} - ${row.value}%`);
+  });
+  doc.moveDown();
+
   doc.fontSize(14).text("Alertas tecnicos");
   doc.moveDown(0.4);
   stats.riskList.forEach((risk) => {

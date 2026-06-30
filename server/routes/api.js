@@ -178,7 +178,7 @@ router.post("/auth/register-trainer", async (req, res, next) => {
   }
 });
 
-router.get("/reports/performance", async (req, res, next) => {
+router.post("/reports/performance", async (req, res, next) => {
   try {
     const pdf = await buildPerformancePdf();
     res.setHeader("Content-Type", "application/pdf");

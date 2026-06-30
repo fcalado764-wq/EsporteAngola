@@ -33,6 +33,9 @@ Sem variaveis Supabase/Groq configuradas, a aplicacao usa dados mockados para de
 - Planeamento e historico de treinos.
 - Estatisticas de golos, assistencias, assiduidade e risco fisico.
 - Chat do treinador com IA, preparado para Groq.
+- Validacao de treino realizado e marcacao de presencas por atleta.
+- Conta de treinador em modo demo, preparada para Supabase Auth.
+- Painel de administrador/diretor desportivo para criar equipas.
 - Endpoint para gerar relatorio PDF.
 - Schema SQL inicial para Supabase em `database/schema.sql`.
 
@@ -44,8 +47,14 @@ Sem variaveis Supabase/Groq configuradas, a aplicacao usa dados mockados para de
 - `POST /api/athletes`
 - `GET /api/trainings`
 - `POST /api/trainings`
+- `GET /api/trainings/:id/attendance`
+- `POST /api/trainings/:id/complete`
 - `GET /api/stats`
 - `POST /api/ai/chat`
+- `GET /api/teams`
+- `POST /api/teams`
+- `GET /api/coaches`
+- `POST /api/auth/register-trainer`
 - `POST /api/reports/performance`
 
 ## Proximos passos sugeridos

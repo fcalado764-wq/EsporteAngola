@@ -256,16 +256,16 @@ export async function completeTraining(trainingId, input) {
     throw new Error("ID do treino invalido");
   }
 
-  const training = trainings.find((item) => item.id === trainingId);
-
-  if (!training) {
-    throw new Error("Treino nao encontrado");
-  }
-
   const attendance = input.attendance || [];
   const present = attendance.filter((record) => record.status === "present").length;
 
   if (!hasSupabaseConfig()) {
+    const training = trainings.find((item) => item.id === trainingId);
+
+    if (!training) {
+      throw new Error("Treino nao encontrado");
+    }
+
     training.status = "done";
     training.present = present;
     training.invited = attendance.length || training.invited;
@@ -295,12 +295,22 @@ export async function completeTraining(trainingId, input) {
   }
 
   const supabase = getSupabase();
+  const { data: existingTraining, error: trainingError } = await supabase
+    .from("trainings")
+    .select("*")
+    .eq("id", trainingId)
+    .single();
+
+  if (trainingError || !existingTraining) {
+    throw new Error(trainingError?.message || "Treino nao encontrado");
+  }
+
   const { data, error } = await supabase
     .from("trainings")
     .update({
       status: "done",
       present,
-      invited: attendance.length || training.invited,
+      invited: attendance.length || existingTraining.invited,
       completed_at: new Date().toISOString(),
       notes: input.notes || ""
     })
@@ -384,7 +394,17 @@ export async function createTeam(input) {
   }
 
   const supabase = getSupabase();
-  const { data, error } = await supabase.from("teams").insert(newTeam).select().single();
+  const { data, error } = await supabase
+    .from("teams")
+    .insert({
+      name: input.name,
+      category: input.category,
+      season: input.season,
+      coach: input.coach,
+      venue: input.venue
+    })
+    .select()
+    .single();
 
   if (error) {
     throw new Error(error.message);
@@ -394,7 +414,23 @@ export async function createTeam(input) {
 }
 
 export async function listCoaches() {
-  return coaches;
+  if (hasSupabaseConfig()) {
+    try {
+      const rows = await querySupabase("trainer_profiles");
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        role: row.role,
+        teamId: row.team_id,
+        status: row.status
+      }));
+    } catch {
+      return coaches;
+    }
+  }
+
+  return coaches.map((coach) => ({ ...coach, password: undefined }));
 }
 
 export async function registerCoach(input) {
@@ -404,6 +440,49 @@ export async function registerCoach(input) {
     status: "active",
     ...input
   };
+
+  if (hasSupabaseConfig()) {
+    const supabase = getSupabase();
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: input.email,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: {
+        name: input.name,
+        role: "trainer"
+      }
+    });
+
+    if (authError) {
+      throw new Error(authError.message);
+    }
+
+    const { data, error } = await supabase
+      .from("trainer_profiles")
+      .insert({
+        id: authData.user.id,
+        name: input.name,
+        email: input.email,
+        role: "trainer",
+        team_id: input.teamId || null,
+        status: "active"
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      role: data.role,
+      teamId: data.team_id,
+      status: data.status
+    };
+  }
 
   coaches.unshift(newCoach);
   return { ...newCoach, password: undefined };

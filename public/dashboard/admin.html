@@ -698,10 +698,13 @@
               <input type="email" name="email" placeholder="treinador@clube.ao" required>
             </div>
             <div class="form-group">
+              <label>Palavra-passe</label>
+              <input type="password" name="password" minlength="6" placeholder="Minimo 6 caracteres" required>
+            </div>
+            <div class="form-group">
               <label>Equipa</label>
-              <select name="teamId" required>
+              <select name="teamId" id="trainerTeamSelect" required>
                 <option value="">-- Selecione uma equipa --</option>
-                <option value="1">Sporting Luanda Sub-20</option>
               </select>
             </div>
             <button type="submit" class="btn">Criar Conta de Treinador</button>
@@ -776,16 +779,35 @@
         const injured = athletes.filter(a => a.status === 'injured').length || 0;
         document.getElementById('injuredCount').textContent = injured;
 
-        document.getElementById('teamsTable').innerHTML = teams.map(team => `
+        document.getElementById('teamsTable').innerHTML = teams.map((team, idx) => `
           <tr>
             <td><strong>${team.name}</strong></td>
             <td>${team.category}</td>
             <td>${team.season}</td>
             <td>${team.coach}</td>
             <td>${team.venue}</td>
-            <td><button class="btn btn-sm">Editar</button></td>
+            <td>
+              <button class="btn btn-sm" onclick="editTeam(${idx})">Editar</button>
+              <button class="btn btn-sm" style="background: #ef4444;" onclick="deleteTeam(${idx})">Deletar</button>
+            </td>
           </tr>
         `).join('') || '<tr><td colspan="6" style="text-align: center; color: #9ca3af;">Nenhuma equipa registada</td></tr>';
+
+        document.getElementById('trainerTeamSelect').innerHTML = '<option value="">-- Selecione uma equipa --</option>' + teams.map(team => `
+          <option value="${team.id}">${team.name} ${team.category}</option>
+        `).join('');
+
+        document.getElementById('trainersTable').innerHTML = coaches.map(coach => {
+          const team = teams.find(item => item.id === coach.teamId);
+          return `
+            <tr>
+              <td><strong>${coach.name}</strong></td>
+              <td>${coach.email}</td>
+              <td>${team ? `${team.name} ${team.category}` : 'Todas as equipas'}</td>
+              <td><span class="badge active">${coach.status === 'active' ? 'Ativo' : 'Inativo'}</span></td>
+            </tr>
+          `;
+        }).join('') || '<tr><td colspan="4" style="text-align: center; color: #9ca3af;">Nenhum treinador registado</td></tr>';
 
         document.getElementById('athletesTable').innerHTML = athletes.map(athlete => `
           <tr>
@@ -844,9 +866,30 @@
         if (response.ok) {
           alert('Equipa adicionada com sucesso!');
           e.target.reset();
+          loadDashboard();
         }
       } catch (error) {
         alert('Erro ao adicionar equipa: ' + error.message);
+      }
+    });
+
+    document.getElementById('trainerForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData);
+      try {
+        const response = await authenticatedFetch('/api/auth/register-trainer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (response.ok) {
+          alert('Conta de treinador criada com sucesso!');
+          e.target.reset();
+          loadDashboard();
+        }
+      } catch (error) {
+        alert('Erro ao criar treinador: ' + error.message);
       }
     });
 
@@ -854,7 +897,7 @@
       e.preventDefault();
       try {
         const response = await authenticatedFetch('/api/reports/performance', {
-          method: 'GET'
+          method: 'POST'
         });
         if (response.ok) {
           const blob = await response.blob();
