@@ -5,13 +5,16 @@ import { buildPerformancePdf } from "../services/report.js";
 import {
   completeTraining,
   createAthlete,
+  createMatchStat,
   createTeam,
   createTraining,
   getDashboard,
+  getMatchStatsSummary,
   getStats,
   listAttendance,
   listAthletes,
   listCoaches,
+  listMatchStats,
   listTeams,
   listTrainings,
   registerCoach
@@ -61,6 +64,17 @@ const coachSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   teamId: z.string().optional()
+});
+
+const matchStatSchema = z.object({
+  athleteId: z.string().min(1),
+  match: z.string().min(2),
+  goals: z.coerce.number().int().min(0).default(0),
+  assists: z.coerce.number().int().min(0).default(0),
+  shots: z.coerce.number().int().min(0).default(0),
+  shotsOnTarget: z.coerce.number().int().min(0).default(0),
+  saves: z.coerce.number().int().min(0).default(0),
+  turnovers: z.coerce.number().int().min(0).default(0)
 });
 
 router.get("/health", (req, res) => {
@@ -129,6 +143,31 @@ router.post("/trainings/:id/complete", async (req, res, next) => {
 router.get("/stats", async (req, res, next) => {
   try {
     res.json(await getStats());
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/match-stats", async (req, res, next) => {
+  try {
+    res.json(await listMatchStats());
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/match-stats", async (req, res, next) => {
+  try {
+    const input = matchStatSchema.parse(req.body);
+    res.status(201).json(await createMatchStat(input));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/match-stats/summary", async (req, res, next) => {
+  try {
+    res.json(await getMatchStatsSummary());
   } catch (error) {
     next(error);
   }

@@ -429,6 +429,7 @@
       <button onclick="showTab('trainings')">📅 Treinos</button>
       <button onclick="showTab('attendance')">✓ Presença</button>
       <button onclick="showTab('stats')">📈 Estatísticas</button>
+      <button onclick="showTab('ai')">🤖 Avaliação com IA</button>
       <button onclick="showTab('reports')">📄 Relatórios</button>
       <button onclick="showTab('account')">⚙️ Minha Conta</button>
     </nav>
@@ -711,6 +712,52 @@
       </div>
 
       <div class="card">
+        <div class="section-title">Registar Estatísticas de Jogo</div>
+        <form id="matchStatsForm">
+          <div class="grid">
+            <div class="form-group">
+              <label>Atleta</label>
+              <select name="athleteId" id="matchAthleteSelect" required></select>
+            </div>
+            <div class="form-group">
+              <label>Jogo</label>
+              <input type="text" name="match" placeholder="ex: Sporting Luanda x Petro B" required>
+            </div>
+            <div class="form-group">
+              <label>Golos</label>
+              <input type="number" name="goals" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label>Assistências</label>
+              <input type="number" name="assists" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label>Remates</label>
+              <input type="number" name="shots" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label>Remates à baliza</label>
+              <input type="number" name="shotsOnTarget" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label>Defesas</label>
+              <input type="number" name="saves" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label>Perdas de bola</label>
+              <input type="number" name="turnovers" min="0" value="0">
+            </div>
+          </div>
+          <button type="submit" class="btn">Guardar estatística de jogo</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Resumo de Jogo para IA</div>
+        <div id="matchStatsSummary" style="color: #6b7280;"></div>
+      </div>
+
+      <div class="card">
         <div class="section-title">Assiduidade Geral</div>
         <div class="table-container">
           <table>
@@ -728,6 +775,42 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- IA Groq -->
+    <div id="ai" class="tab-panel">
+      <div class="header">
+        <h1>IA Groq - Assistente do Treinador</h1>
+        <p>Analise treinos, presencas, estatisticas de jogo e rendimento dos atletas</p>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Perguntas rápidas</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-sm" onclick="askAiQuick('Quem precisa de acompanhamento com base nas presencas e rendimento em jogo?')">Acompanhamento</button>
+          <button class="btn btn-sm" onclick="askAiQuick('Sugere o proximo treino com base nos remates, golos, perdas de bola e assiduidade.')">Sugestao de treino</button>
+          <button class="btn btn-sm" onclick="askAiQuick('Analisa a eficacia de remate e remates a baliza dos jogadores.')">Eficacia de remate</button>
+          <button class="btn btn-sm" onclick="askAiQuick('Resume os riscos da equipa para o proximo jogo.')">Riscos</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Chat com IA</div>
+        <form id="aiForm">
+          <div class="form-group">
+            <label>Pergunta</label>
+            <textarea id="aiQuestion" rows="4" placeholder="Ex: O que devo melhorar no proximo treino com base nas presencas e estatisticas de jogo?" required></textarea>
+          </div>
+          <button type="submit" class="btn">Perguntar ao Groq</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Resposta da IA</div>
+        <div id="aiAnswer" style="white-space: pre-wrap; color: #374151; line-height: 1.6;">
+          Faz uma pergunta para receber uma analise baseada nos dados da equipa.
         </div>
       </div>
     </div>
@@ -813,6 +896,8 @@
         loadAttendance();
       } else if (tabName === 'stats') {
         loadStats();
+      } else if (tabName === 'ai') {
+        document.getElementById('aiQuestion')?.focus();
       }
     }
 
@@ -1031,6 +1116,10 @@
         ]);
         document.getElementById('topScorersChart').innerHTML = (stats.goalsByAthlete || []).slice(0, 5).map(row => `<p><strong>${row.name}</strong>: ${row.value} golos</p>`).join('');
         document.getElementById('topAssistsChart').innerHTML = (stats.assistsByAthlete || []).slice(0, 5).map(row => `<p><strong>${row.name}</strong>: ${row.value} assistencias</p>`).join('');
+        document.getElementById('matchAthleteSelect').innerHTML = athletes.map(athlete => `<option value="${athlete.id}">${athlete.name} - ${athlete.position}</option>`).join('');
+        document.getElementById('matchStatsSummary').innerHTML = (stats.matchStatsByAthlete || []).map(row => `
+          <p><strong>${row.name}</strong>: ${row.goals} golos, ${row.assists} assistencias, ${row.shotsOnTarget}/${row.shots} remates à baliza/remates, ${row.saves} defesas, ${row.turnovers} perdas, ${row.goalConversion}% conversao.</p>
+        `).join('') || 'Sem estatísticas de jogo registadas.';
         document.getElementById('attendanceStatsBody').innerHTML = athletes.map(athlete => `
           <tr>
             <td><strong>${athlete.name}</strong></td>
@@ -1121,6 +1210,53 @@
           alert('Erro ao gerar relatório: ' + error.message);
         }
       });
+
+      document.getElementById('aiForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        askAiQuick(document.getElementById('aiQuestion').value);
+      });
+
+      document.getElementById('matchStatsForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+        try {
+          const response = await authenticatedFetch('/api/match-stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          if (response.ok) {
+            alert('Estatística de jogo guardada com sucesso!');
+            e.target.reset();
+            loadStats();
+          } else {
+            const error = await response.json();
+            alert('Erro ao guardar estatística: ' + (error.error || 'pedido falhou'));
+          }
+        } catch (error) {
+          alert('Erro ao guardar estatística: ' + error.message);
+        }
+      });
+    }
+
+    async function askAiQuick(question) {
+      const answerEl = document.getElementById('aiAnswer');
+      const questionEl = document.getElementById('aiQuestion');
+      if (questionEl) questionEl.value = question;
+      answerEl.textContent = 'A analisar dados da equipa...';
+
+      try {
+        const response = await authenticatedFetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        const result = await response.json();
+        answerEl.textContent = `[${result.provider}]\n\n${result.answer}`;
+      } catch (error) {
+        answerEl.textContent = 'Erro ao consultar IA: ' + error.message;
+      }
     }
   </script>
 </body>

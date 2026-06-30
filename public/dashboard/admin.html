@@ -414,6 +414,7 @@
       <button onclick="showTab('athletes')">👥 Atletas</button>
       <button onclick="showTab('trainings')">📅 Treinos</button>
       <button onclick="showTab('stats')">📈 Estatísticas</button>
+      <button onclick="showTab('ai')">🤖 Avaliação com IA</button>
       <button onclick="showTab('reports')">📄 Relatórios</button>
       <button onclick="showTab('trainers')">🎓 Treinadores</button>
     </nav>
@@ -438,7 +439,7 @@
           <div class="card">
             <div class="metric">
               <span class="metric-label">Total de Equipas</span>
-              <div class="metric-value"><span id="teams">-</span></div>
+              <div class="metric-value"><span id="teamsCount">-</span></div>
             </div>
           </div>
           <div class="card">
@@ -654,6 +655,42 @@
       </div>
     </div>
 
+    <!-- IA Groq -->
+    <div id="ai" class="tab-panel">
+      <div class="header">
+        <h1>IA Groq - Diretor Desportivo</h1>
+        <p>Analise equipas, treinadores, atletas, presencas, estatisticas e prioridades do clube</p>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Perguntas rápidas</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-sm" onclick="askAiQuick('Como diretor desportivo, quais equipas e atletas precisam de mais acompanhamento?')">Prioridades do clube</button>
+          <button class="btn btn-sm" onclick="askAiQuick('Que indicadores devo acompanhar semanalmente nas equipas?')">Indicadores semanais</button>
+          <button class="btn btn-sm" onclick="askAiQuick('Resume a situacao de presencas, riscos e rendimento em jogo.')">Resumo geral</button>
+          <button class="btn btn-sm" onclick="askAiQuick('Que melhorias devo adicionar ao sistema para clubes e escolas?')">Melhorias do sistema</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Chat com IA</div>
+        <form id="aiForm">
+          <div class="form-group">
+            <label>Pergunta</label>
+            <textarea id="aiQuestion" rows="4" placeholder="Ex: Quais equipas precisam de reforco tecnico ou acompanhamento?" required></textarea>
+          </div>
+          <button type="submit" class="btn">Perguntar ao Groq</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Resposta da IA</div>
+        <div id="aiAnswer" style="white-space: pre-wrap; color: #374151; line-height: 1.6;">
+          Faz uma pergunta para receber uma analise administrativa e tecnica.
+        </div>
+      </div>
+    </div>
+
     <!-- Relatórios -->
     <div id="reports" class="tab-panel">
       <div class="header">
@@ -673,7 +710,7 @@
               <option>Relatório estatístico completo</option>
             </select>
           </div>
-          <button type="submit" class="btn">📥 Baixar PDF</button>
+          <button type="submit" class="btn">Baixar PDF</button>
         </form>
       </div>
     </div>
@@ -744,10 +781,15 @@
 
       const buttons = document.querySelectorAll('.sidebar-nav button');
       buttons.forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
+      const activeButton =
+        (typeof event !== 'undefined' ? event.target : null) ||
+        document.querySelector(`.sidebar-nav button[onclick="showTab('${tabName}')"]`);
+      activeButton?.classList.add('active');
 
       if (tabName === 'overview') {
         loadDashboard();
+      } else if (tabName === 'ai') {
+        document.getElementById('aiQuestion')?.focus();
       }
     }
 
@@ -773,7 +815,7 @@
         document.getElementById('userName').textContent = auth.getUser().name;
         document.getElementById('userAvatar').textContent = auth.getUser().name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
-        document.getElementById('teams').textContent = teams.length || 0;
+        document.getElementById('teamsCount').textContent = teams.length || 0;
         document.getElementById('totalAthletes').textContent = athletes.length || 0;
         document.getElementById('coaches').textContent = coaches.filter(c => c.status === 'active').length || 0;
         const injured = athletes.filter(a => a.status === 'injured').length || 0;
@@ -913,6 +955,30 @@
         alert('Erro ao gerar relatório: ' + error.message);
       }
     });
+
+    document.getElementById('aiForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      askAiQuick(document.getElementById('aiQuestion').value);
+    });
+
+    async function askAiQuick(question) {
+      const answerEl = document.getElementById('aiAnswer');
+      const questionEl = document.getElementById('aiQuestion');
+      if (questionEl) questionEl.value = question;
+      answerEl.textContent = 'A analisar dados do clube...';
+
+      try {
+        const response = await authenticatedFetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+        const result = await response.json();
+        answerEl.textContent = `[${result.provider}]\n\n${result.answer}`;
+      } catch (error) {
+        answerEl.textContent = 'Erro ao consultar IA: ' + error.message;
+      }
+    }
   </script>
 </body>
 </html>

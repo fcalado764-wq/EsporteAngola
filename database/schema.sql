@@ -7,7 +7,8 @@ create table if not exists public.teams (
   season text not null,
   coach text not null,
   venue text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (name, category, season)
 );
 
 create table if not exists public.athletes (
@@ -70,10 +71,20 @@ create table if not exists public.match_stats (
   match_name text not null,
   goals integer not null default 0,
   assists integer not null default 0,
+  shots integer not null default 0,
+  shots_on_target integer not null default 0,
+  saves integer not null default 0,
   turnovers integer not null default 0,
   created_at timestamptz not null default now()
 );
 
+alter table public.match_stats
+  add column if not exists shots integer not null default 0,
+  add column if not exists shots_on_target integer not null default 0,
+  add column if not exists saves integer not null default 0;
+
 insert into public.teams (name, category, season, coach, venue)
 values ('Sporting Luanda', 'Sub-20', '2025/26', 'Mario Figueiredo', 'Pavilhao Cazenga')
-on conflict do nothing;
+on conflict (name, category, season) do update set
+  coach = excluded.coach,
+  venue = excluded.venue;

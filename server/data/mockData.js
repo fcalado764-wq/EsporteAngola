@@ -221,10 +221,56 @@ export const attendanceRecords = [
 ];
 
 export const matchStats = [
-  { athleteId: "ak-7", match: "Sporting Luanda x Progresso", goals: 8, assists: 4, turnovers: 2 },
-  { athleteId: "jm-11", match: "Sporting Luanda x Petro B", goals: 6, assists: 3, turnovers: 1 },
-  { athleteId: "dl-5", match: "Sporting Luanda x Primeiro de Agosto B", goals: 2, assists: 7, turnovers: 5 },
-  { athleteId: "rc-14", match: "Sporting Luanda x Interclube B", goals: 7, assists: 2, turnovers: 3 }
+  {
+    athleteId: "ak-7",
+    match: "Sporting Luanda x Progresso",
+    goals: 8,
+    assists: 4,
+    shots: 12,
+    shotsOnTarget: 10,
+    saves: 0,
+    turnovers: 2
+  },
+  {
+    athleteId: "jm-11",
+    match: "Sporting Luanda x Petro B",
+    goals: 6,
+    assists: 3,
+    shots: 10,
+    shotsOnTarget: 8,
+    saves: 0,
+    turnovers: 1
+  },
+  {
+    athleteId: "dl-5",
+    match: "Sporting Luanda x Primeiro de Agosto B",
+    goals: 2,
+    assists: 7,
+    shots: 7,
+    shotsOnTarget: 4,
+    saves: 0,
+    turnovers: 5
+  },
+  {
+    athleteId: "fn-1",
+    match: "Sporting Luanda x Petro B",
+    goals: 0,
+    assists: 1,
+    shots: 0,
+    shotsOnTarget: 0,
+    saves: 14,
+    turnovers: 1
+  },
+  {
+    athleteId: "rc-14",
+    match: "Sporting Luanda x Interclube B",
+    goals: 7,
+    assists: 2,
+    shots: 11,
+    shotsOnTarget: 8,
+    saves: 0,
+    turnovers: 3
+  }
 ];
 
 export function buildDashboard() {

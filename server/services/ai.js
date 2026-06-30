@@ -1,10 +1,12 @@
 import Groq from "groq-sdk";
 import {
   getDashboard,
+  getMatchStatsSummary,
   getStats,
   listAthletes,
   listAttendance,
   listCoaches,
+  listMatchStats,
   listTeams,
   listTrainings
 } from "./store.js";
@@ -57,12 +59,14 @@ function summarizeAttendanceForAthlete(athlete, attendance, trainings) {
 
 function buildLocalAnswer(question, context) {
   const lowerQuestion = normalize(question);
-  const { athletes, trainings, stats, teams, coaches, attendance } = context;
+  const { athletes, trainings, stats, teams, coaches, attendance, matchStatsSummary } = context;
   const mentionedAthlete = findMentionedAthlete(question, athletes);
   const completedTrainings = trainings.filter((training) => training.status === "done");
   const plannedTrainings = trainings.filter((training) => training.status === "planned");
   const worstAttendance = [...stats.attendanceByAthlete].sort((a, b) => a.value - b.value).slice(0, 3);
   const topScorer = stats.goalsByAthlete[0];
+  const topGamePerformer = matchStatsSummary[0];
+  const goalkeeperStats = matchStatsSummary.filter((row) => row.saves > 0).sort((a, b) => b.saves - a.saves);
   const riskNames = stats.riskList.map((risk) => `${risk.name} (${risk.reason})`);
 
   if (mentionedAthlete) {
@@ -71,9 +75,15 @@ function buildLocalAnswer(question, context) {
       mentionedAthlete.position === "Guarda-redes"
         ? `${mentionedAthlete.savesRate || 0}% de defesas`
         : `${mentionedAthlete.goals || 0} golos e ${mentionedAthlete.assists || 0} assistencias`;
+    const gameStat = matchStatsSummary.find((row) => row.athleteId === mentionedAthlete.id);
 
     return `${mentionedAthlete.name}: joga como ${mentionedAthlete.position}, numero ${mentionedAthlete.number}, com ${mentionedAthlete.attendanceRate}% de assiduidade e ${outputStat}.
 Na chamada dos treinos, tem ${athleteAttendance.present} presencas, ${athleteAttendance.absent} faltas e ${athleteAttendance.injured} registos por lesao. Ultimo registo: ${athleteAttendance.last}.
+Estatisticas de jogo: ${
+      gameStat
+        ? `${gameStat.goals} golos, ${gameStat.assists} assistencias, ${gameStat.shotsOnTarget}/${gameStat.shots} remates a baliza/remates, ${gameStat.saves} defesas e ${gameStat.turnovers} perdas de bola. Eficacia de remate: ${gameStat.goalConversion}%.`
+        : "ainda sem registos de jogo detalhados."
+    }
 Recomendacao: ${
       mentionedAthlete.status === "injured"
         ? "manter acompanhamento medico e reintegrar com carga controlada."
@@ -95,6 +105,27 @@ Treinos validados: ${completedTrainings.length}. Para melhorar a fiabilidade da 
 Base da recomendacao: ${topScorer?.name || "a equipa"} lidera a producao ofensiva, mas a lista de risco indica ${riskNames.join(", ") || "sem alertas graves"}. Controla carga de atletas lesionados ou com assiduidade baixa.`;
   }
 
+  if (
+    lowerQuestion.includes("jogo") ||
+    lowerQuestion.includes("golo") ||
+    lowerQuestion.includes("remate") ||
+    lowerQuestion.includes("baliza") ||
+    lowerQuestion.includes("defesa") ||
+    lowerQuestion.includes("perda")
+  ) {
+    return `Analise de jogo: ${
+      topGamePerformer
+        ? `${topGamePerformer.name} lidera com ${topGamePerformer.goals} golos, ${topGamePerformer.assists} assistencias e ${topGamePerformer.goalConversion}% de conversao.`
+        : "ainda ha poucos dados de jogo registados."
+    }
+Remates e eficacia: ${matchStatsSummary
+      .slice(0, 4)
+      .map((row) => `${row.name}: ${row.shotsOnTarget}/${row.shots} no alvo, ${row.goalConversion}% conversao, ${row.turnovers} perdas`)
+      .join("; ") || "sem estatisticas detalhadas"}.
+Guarda-redes: ${goalkeeperStats.length ? goalkeeperStats.map((row) => `${row.name} com ${row.saves} defesas`).join("; ") : "sem defesas registadas"}.
+Recomendacao: trabalhar selecao de remate, reduzir perdas em ataque organizado e cruzar minutos de treino com desempenho em jogo.`;
+  }
+
   if (lowerQuestion.includes("relatorio") || lowerQuestion.includes("resumo") || lowerQuestion.includes("semana")) {
     return `Resumo tecnico: ${context.dashboard.team.name} ${context.dashboard.team.category} tem ${athletes.length} atletas, ${completedTrainings.length} treinos realizados, ${plannedTrainings.length} treino(s) agendado(s), ${context.dashboard.metrics.goals} golos e ${context.dashboard.metrics.attendanceAverage}% de assiduidade media.
 Prioridades: ${riskNames.join(", ") || "manter consistencia do grupo"}. O relatorio PDF deve destacar top marcadores, atletas em risco e presencas por treino.`;
@@ -108,8 +139,9 @@ Boa pratica: cada equipa deve ter escalao, epoca, treinador responsavel e local 
 
   return `Analise rapida a partir dos dados actuais: ${context.dashboard.team.name} ${context.dashboard.team.category} tem ${athletes.length} atletas, ${context.dashboard.metrics.attendanceAverage}% de assiduidade media, ${context.dashboard.metrics.goals} golos registados e ${completedTrainings.length} treinos validados.
 Melhor marcador: ${topScorer ? `${topScorer.name} com ${topScorer.value} golos` : "sem dados"}.
+Melhor rendimento em jogo: ${topGamePerformer ? `${topGamePerformer.name}, ${topGamePerformer.goals} golos, ${topGamePerformer.assists} assistencias e ${topGamePerformer.goalConversion}% de conversao` : "sem dados detalhados"}.
 Riscos activos: ${riskNames.join(", ") || "sem riscos graves"}.
-Pergunta recebida: "${question}". Posso detalhar por atleta, treino, presenca, equipa, relatorio ou plano de treino.`;
+Pergunta recebida: "${question}". Posso detalhar por atleta, treino, presenca, equipa, jogo, remates, defesas, relatorio ou plano de treino.`;
 }
 
 export async function askCoachAssistant(question) {
@@ -117,17 +149,19 @@ export async function askCoachAssistant(question) {
     throw new Error("Pergunta deve ter pelo menos 3 caracteres");
   }
 
-  const [dashboard, athletes, trainings, stats, teams, coaches] = await Promise.all([
+  const [dashboard, athletes, trainings, stats, teams, coaches, matchStats, matchStatsSummary] = await Promise.all([
     getDashboard(),
     listAthletes(),
     listTrainings(),
     getStats(),
     listTeams(),
-    listCoaches()
+    listCoaches(),
+    listMatchStats(),
+    getMatchStatsSummary()
   ]);
   const attendanceGroups = await Promise.all(trainings.map((training) => listAttendance(training.id)));
   const attendance = attendanceGroups.flat();
-  const context = { dashboard, athletes, trainings, stats, teams, coaches, attendance };
+  const context = { dashboard, athletes, trainings, stats, teams, coaches, attendance, matchStats, matchStatsSummary };
   const client = getGroqClient();
 
   if (!client) {
@@ -145,7 +179,7 @@ export async function askCoachAssistant(question) {
         {
           role: "system",
           content:
-            "Es um assistente tecnico para treinadores de andebol. Responde em portugues de Angola, com analise pratica, curta e baseada nos dados fornecidos. Nao inventes dados."
+            "Es um assistente tecnico e analista de desempenho para andebol. Responde em portugues de Angola, com analise pratica, curta e baseada nos dados fornecidos. Usa presencas, treinos, estatisticas de jogo, golos, remates, remates a baliza, defesas, assistencias e perdas de bola. Nao inventes dados."
         },
         {
           role: "user",

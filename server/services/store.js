@@ -4,6 +4,7 @@ import {
   buildDashboard,
   buildStats,
   coaches,
+  matchStats,
   team,
   teams,
   trainings
@@ -57,6 +58,47 @@ function mapTeam(row) {
   };
 }
 
+function mapMatchStat(row, athleteById = new Map()) {
+  const athleteId = row.athlete_id || row.athleteId;
+  const athlete = athleteById.get(athleteId);
+
+  return {
+    id: row.id,
+    athleteId,
+    athleteName: athlete?.name || row.athleteName || "Atleta",
+    match: row.match_name || row.match,
+    goals: row.goals || 0,
+    assists: row.assists || 0,
+    shots: row.shots || 0,
+    shotsOnTarget: row.shots_on_target || row.shotsOnTarget || 0,
+    saves: row.saves || 0,
+    turnovers: row.turnovers || 0
+  };
+}
+
+function teamIdentity(teamItem) {
+  return [teamItem.name, teamItem.category, teamItem.season]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .join("|");
+}
+
+function uniqueTeams(rows) {
+  const seen = new Set();
+
+  return rows.filter((row) => {
+    const key = teamIdentity(row);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function shouldUseMockFallback() {
+  return !hasSupabaseConfig();
+}
+
 function getLocalAthletesWithAttendance() {
   const completedTrainingIds = new Set(trainings.filter((training) => training.status === "done").map((training) => training.id));
 
@@ -93,7 +135,7 @@ async function querySupabase(table, select = "*") {
 }
 
 export async function getDashboard() {
-  if (!hasSupabaseConfig()) {
+  if (shouldUseMockFallback()) {
     updateLocalAttendanceRates();
     return buildDashboard();
   }
@@ -132,20 +174,20 @@ export async function getDashboard() {
       }))
     };
   } catch (error) {
-    return { ...buildDashboard(), source: "mock", warning: error.message };
+    throw new Error(`Erro ao carregar dashboard no Supabase: ${error.message}`);
   }
 }
 
 export async function listAthletes() {
-  if (!hasSupabaseConfig()) {
+  if (shouldUseMockFallback()) {
     return getLocalAthletesWithAttendance();
   }
 
   try {
     const rows = await querySupabase("athletes");
     return rows.map(mapAthlete);
-  } catch {
-    return athletes;
+  } catch (error) {
+    throw new Error(`Erro ao carregar atletas no Supabase: ${error.message}`);
   }
 }
 
@@ -199,15 +241,15 @@ export async function createAthlete(input) {
 }
 
 export async function listTrainings() {
-  if (!hasSupabaseConfig()) {
+  if (shouldUseMockFallback()) {
     return trainings;
   }
 
   try {
     const rows = await querySupabase("trainings");
     return rows.map(mapTraining);
-  } catch {
-    return trainings;
+  } catch (error) {
+    throw new Error(`Erro ao carregar treinos no Supabase: ${error.message}`);
   }
 }
 
@@ -346,7 +388,7 @@ export async function listAttendance(trainingId) {
     throw new Error("ID do treino invalido");
   }
 
-  if (!hasSupabaseConfig()) {
+  if (shouldUseMockFallback()) {
     return attendanceRecords.filter((record) => record.trainingId === trainingId);
   }
 
@@ -364,21 +406,21 @@ export async function listAttendance(trainingId) {
       status: record.status,
       notes: record.notes
     }));
-  } catch {
-    return attendanceRecords.filter((record) => record.trainingId === trainingId);
+  } catch (error) {
+    throw new Error(`Erro ao carregar presencas no Supabase: ${error.message}`);
   }
 }
 
 export async function listTeams() {
-  if (!hasSupabaseConfig()) {
+  if (shouldUseMockFallback()) {
     return teams;
   }
 
   try {
     const rows = await querySupabase("teams");
-    return rows.map(mapTeam);
-  } catch {
-    return teams;
+    return uniqueTeams(rows.map(mapTeam));
+  } catch (error) {
+    throw new Error(`Erro ao carregar equipas no Supabase: ${error.message}`);
   }
 }
 
@@ -394,6 +436,36 @@ export async function createTeam(input) {
   }
 
   const supabase = getSupabase();
+  const { data: existingRows, error: existingError } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("name", input.name)
+    .eq("category", input.category)
+    .eq("season", input.season)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (existingRows.length) {
+    const { data, error } = await supabase
+      .from("teams")
+      .update({
+        coach: input.coach,
+        venue: input.venue
+      })
+      .eq("id", existingRows[0].id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return mapTeam(data);
+  }
+
   const { data, error } = await supabase
     .from("teams")
     .insert({
@@ -425,8 +497,8 @@ export async function listCoaches() {
         teamId: row.team_id,
         status: row.status
       }));
-    } catch {
-      return coaches;
+    } catch (error) {
+      throw new Error(`Erro ao carregar treinadores no Supabase: ${error.message}`);
     }
   }
 
@@ -510,16 +582,119 @@ function buildStatsFromRows(rows) {
   };
 }
 
+function summarizeMatchStats(rows) {
+  const byAthlete = new Map();
+
+  for (const row of rows) {
+    const current = byAthlete.get(row.athleteId) || {
+      athleteId: row.athleteId,
+      name: row.athleteName,
+      goals: 0,
+      assists: 0,
+      shots: 0,
+      shotsOnTarget: 0,
+      saves: 0,
+      turnovers: 0,
+      matches: 0
+    };
+
+    current.goals += row.goals;
+    current.assists += row.assists;
+    current.shots += row.shots;
+    current.shotsOnTarget += row.shotsOnTarget;
+    current.saves += row.saves;
+    current.turnovers += row.turnovers;
+    current.matches += 1;
+    current.shootingAccuracy = current.shots ? Math.round((current.shotsOnTarget / current.shots) * 100) : 0;
+    current.goalConversion = current.shots ? Math.round((current.goals / current.shots) * 100) : 0;
+
+    byAthlete.set(row.athleteId, current);
+  }
+
+  return [...byAthlete.values()].sort((a, b) => b.goals - a.goals || b.assists - a.assists);
+}
+
+export async function listMatchStats() {
+  if (shouldUseMockFallback()) {
+    const athleteById = new Map(athletes.map((athlete) => [athlete.id, athlete]));
+    return matchStats.map((row) => mapMatchStat(row, athleteById));
+  }
+
+  try {
+    const [statRows, athleteRows] = await Promise.all([
+      querySupabase("match_stats"),
+      querySupabase("athletes")
+    ]);
+    const athleteById = new Map(athleteRows.map((row) => [row.id, mapAthlete(row)]));
+    return statRows.map((row) => mapMatchStat(row, athleteById));
+  } catch (error) {
+    throw new Error(`Erro ao carregar estatisticas de jogo no Supabase: ${error.message}`);
+  }
+}
+
+export async function createMatchStat(input) {
+  const newMatchStat = {
+    id: randomUUID(),
+    goals: 0,
+    assists: 0,
+    shots: 0,
+    shotsOnTarget: 0,
+    saves: 0,
+    turnovers: 0,
+    ...input
+  };
+
+  if (shouldUseMockFallback()) {
+    matchStats.unshift(newMatchStat);
+    const athleteById = new Map(athletes.map((athlete) => [athlete.id, athlete]));
+    return mapMatchStat(newMatchStat, athleteById);
+  }
+
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("match_stats")
+    .insert({
+      athlete_id: newMatchStat.athleteId,
+      match_name: newMatchStat.match,
+      goals: newMatchStat.goals,
+      assists: newMatchStat.assists,
+      shots: newMatchStat.shots,
+      shots_on_target: newMatchStat.shotsOnTarget,
+      saves: newMatchStat.saves,
+      turnovers: newMatchStat.turnovers
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const athletesList = await listAthletes();
+  const athleteById = new Map(athletesList.map((athlete) => [athlete.id, athlete]));
+  return mapMatchStat(data, athleteById);
+}
+
+export async function getMatchStatsSummary() {
+  return summarizeMatchStats(await listMatchStats());
+}
+
 export async function getStats() {
-  if (!hasSupabaseConfig()) {
+  if (shouldUseMockFallback()) {
     updateLocalAttendanceRates();
-    return buildStats();
+    return {
+      ...buildStats(),
+      matchStatsByAthlete: summarizeMatchStats(await listMatchStats())
+    };
   }
 
   try {
     const rows = await querySupabase("athletes");
-    return buildStatsFromRows(rows.map(mapAthlete));
-  } catch {
-    return buildStats();
+    return {
+      ...buildStatsFromRows(rows.map(mapAthlete)),
+      matchStatsByAthlete: await getMatchStatsSummary()
+    };
+  } catch (error) {
+    throw new Error(`Erro ao carregar estatisticas no Supabase: ${error.message}`);
   }
 }
