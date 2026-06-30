@@ -11,6 +11,8 @@ import {
   listTrainings
 } from "./store.js";
 
+const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+
 let groqClient;
 
 function getGroqClient() {
@@ -55,6 +57,53 @@ function summarizeAttendanceForAthlete(athlete, attendance, trainings) {
     injured,
     last: lastRecord && lastTraining ? `${lastTraining.title} (${lastRecord.status})` : "sem chamada recente"
   };
+}
+
+function isTeamRelatedQuestion(question, context) {
+  const lowerQuestion = normalize(question);
+  const teamKeywords = [
+    "andebol",
+    "equipa",
+    "time",
+    "clube",
+    "atleta",
+    "jogador",
+    "treinador",
+    "diretor",
+    "director",
+    "treino",
+    "presenca",
+    "assiduidade",
+    "estatistica",
+    "estatisticas",
+    "relatorio",
+    "rendimento",
+    "jogo",
+    "golo",
+    "remate",
+    "baliza",
+    "defesa",
+    "assistencia",
+    "lesao",
+    "falta",
+    "convocado",
+    "escalao",
+    "epoca"
+  ];
+
+  const mentionsTeamData = [
+    ...context.athletes.map((athlete) => athlete.name),
+    ...context.teams.map((team) => team.name),
+    ...context.coaches.map((coach) => coach.name)
+  ].some((name) => normalize(name).split(" ").some((part) => part.length > 3 && lowerQuestion.includes(part)));
+
+  return teamKeywords.some((keyword) => lowerQuestion.includes(keyword)) || mentionsTeamData;
+}
+
+function buildGeneralLocalAnswer() {
+  return `Consigo conversar sobre qualquer tema quando a chave e o modelo da Groq estao activos.
+Neste momento a resposta geral depende da Groq. Se a pergunta for sobre equipa, atletas, treinos, presencas, jogos ou relatorios, consigo responder tambem em modo local com os dados do sistema.
+Confirma no Vercel se GROQ_API_KEY esta preenchida e se GROQ_MODEL esta como ${DEFAULT_GROQ_MODEL}.`;
 }
 
 function buildLocalAnswer(question, context) {
@@ -186,27 +235,31 @@ export async function askCoachAssistant(question) {
   const attendance = attendanceGroups.flat();
   const context = { dashboard, athletes, trainings, stats, teams, coaches, attendance, matchStats, matchStatsSummary };
   const client = getGroqClient();
+  const teamQuestion = isTeamRelatedQuestion(question, context);
 
   if (!client) {
     return {
       provider: "local-demo",
-      answer: buildLocalAnswer(question, context)
+      answer: teamQuestion ? buildLocalAnswer(question, context) : buildGeneralLocalAnswer()
     };
   }
 
   try {
     const completion = await client.chat.completions.create({
-      model: process.env.GROQ_MODEL || "llama3-70b-8192",
-      temperature: 0.35,
+      model: process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL,
+      temperature: teamQuestion ? 0.35 : 0.55,
       messages: [
         {
           role: "system",
-          content:
-            "Es um assistente tecnico e analista de desempenho para andebol. Responde em portugues de Angola, com analise pratica, curta e baseada nos dados fornecidos. Usa presencas, treinos, estatisticas de jogo, golos, remates, remates a baliza, defesas, assistencias e perdas de bola. Nao inventes dados."
+          content: teamQuestion
+            ? "Es um assistente tecnico e analista de desempenho para andebol. Responde em portugues de Angola, com analise pratica, curta e baseada nos dados fornecidos. Usa presencas, treinos, estatisticas de jogo, golos, remates, remates a baliza, defesas, assistencias e perdas de bola. Nao inventes dados da equipa; quando faltar informacao, diz claramente o que falta."
+            : "Es um assistente geral integrado num aplicativo de gestao desportiva. Responde em portugues de Angola, de forma clara, util e natural. Para perguntas gerais, responde normalmente sem forcar o assunto para andebol. Se a pergunta pedir dados da equipa, pede ao utilizador para fazer uma pergunta sobre atletas, treinos, presencas, jogos ou relatorios."
         },
         {
           role: "user",
-          content: `Pergunta do treinador: ${question}\n\nDados da equipa:\n${JSON.stringify(context, null, 2)}`
+          content: teamQuestion
+            ? `Pergunta do utilizador: ${question}\n\nDados reais do sistema:\n${JSON.stringify(context, null, 2)}`
+            : `Pergunta do utilizador: ${question}`
         }
       ]
     });
@@ -219,7 +272,7 @@ export async function askCoachAssistant(question) {
     console.error("Erro ao chamar Groq API:", error);
     return {
       provider: "local-fallback",
-      answer: buildLocalAnswer(question, context)
+      answer: teamQuestion ? buildLocalAnswer(question, context) : buildGeneralLocalAnswer()
     };
   }
 }
