@@ -373,6 +373,16 @@
       font-size: 14px;
     }
 
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 14px;
+      border-radius: 6px;
+      color: #1e40af;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
     .chat-card {
       max-width: 980px;
       padding: 0;
@@ -831,14 +841,13 @@
               <input type="email" name="email" placeholder="treinador@clube.ao" required>
             </div>
             <div class="form-group">
-              <label>Palavra-passe</label>
-              <input type="password" name="password" minlength="6" placeholder="Minimo 6 caracteres" required>
-            </div>
-            <div class="form-group">
               <label>Equipa</label>
               <select name="teamId" id="trainerTeamSelect" required>
                 <option value="">-- Selecione uma equipa --</option>
               </select>
+            </div>
+            <div class="info-box" style="margin-bottom: 16px;">
+              A senha temporaria sera gerada automaticamente e enviada por email ao treinador.
             </div>
             <button type="submit" class="btn">Criar Conta de Treinador</button>
           </form>
@@ -868,8 +877,11 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="/js/auth.js"></script>
   <script>
+    let emailjsConfig = null;
+
     function showTab(tabName) {
       const panels = document.querySelectorAll('.tab-panel');
       panels.forEach(p => p.classList.remove('active'));
@@ -897,6 +909,41 @@
       if (confirm('Tem certeza que deseja sair?')) {
         auth.logout();
       }
+    }
+
+    async function loadEmailjsConfig() {
+      if (emailjsConfig) return emailjsConfig;
+      const response = await authenticatedFetch('/api/config/emailjs');
+      emailjsConfig = await response.json();
+      if (emailjsConfig.enabled && window.emailjs) {
+        emailjs.init({ publicKey: emailjsConfig.publicKey });
+      }
+      return emailjsConfig;
+    }
+
+    async function sendTrainerWelcomeEmail(trainer, temporaryPassword) {
+      const config = await loadEmailjsConfig();
+      if (!config.enabled || !window.emailjs) {
+        return { sent: false, reason: 'EmailJS nao configurado' };
+      }
+
+      await emailjs.send(
+        config.serviceId,
+        config.templateId,
+        {
+          to_name: trainer.name,
+          to_email: trainer.email,
+          trainer_name: trainer.name,
+          trainer_email: trainer.email,
+          temporary_password: temporaryPassword,
+          login_url: config.loginUrl,
+          app_name: 'Esporte Angola',
+          director_name: auth.getUser()?.name || 'Diretor Desportivo'
+        },
+        { publicKey: config.publicKey }
+      );
+
+      return { sent: true };
     }
 
     async function loadDashboard() {
@@ -1015,19 +1062,38 @@
       e.preventDefault();
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData);
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'A criar conta...';
+
       try {
         const response = await authenticatedFetch('/api/auth/register-trainer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
-        if (response.ok) {
-          alert('Conta de treinador criada com sucesso!');
-          e.target.reset();
-          loadDashboard();
+
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'pedido falhou');
         }
+
+        submitButton.textContent = 'A enviar email...';
+        const emailResult = await sendTrainerWelcomeEmail(result, result.temporaryPassword);
+
+        if (emailResult.sent) {
+          alert('Conta de treinador criada e email enviado com sucesso!');
+        } else {
+          alert(`Conta criada, mas o email nao foi enviado: ${emailResult.reason}. Senha temporaria: ${result.temporaryPassword}`);
+        }
+
+        e.target.reset();
+        loadDashboard();
       } catch (error) {
         alert('Erro ao criar treinador: ' + error.message);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Criar Conta de Treinador';
       }
     });
 

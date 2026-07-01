@@ -10,6 +10,7 @@ import {
   trainings
 } from "../data/mockData.js";
 import { randomUUID } from "node:crypto";
+import { hashPassword } from "./auth.js";
 import { getSupabase, hasSupabaseConfig } from "./supabase.js";
 
 function mapAthlete(row) {
@@ -552,7 +553,8 @@ export async function registerCoach(input) {
     id: randomUUID(),
     role: "trainer",
     status: "active",
-    ...input
+    ...input,
+    password: hashPassword(input.password)
   };
 
   if (hasSupabaseConfig()) {

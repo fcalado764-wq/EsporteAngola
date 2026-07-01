@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { askCoachAssistant } from "../services/ai.js";
+import { getCurrentUser } from "../services/auth.js";
 import { buildPerformancePdf } from "../services/report.js";
 import {
   completeTraining,
@@ -22,6 +23,30 @@ import {
 } from "../services/store.js";
 
 const router = Router();
+
+function requireAdmin(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    const error = new Error("Token nao fornecido");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
+  const user = getCurrentUser(token);
+  if (!user || user.role !== "admin") {
+    const error = new Error("Apenas o diretor desportivo pode criar treinadores");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return user;
+}
+
+function generateTemporaryPassword() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@$%";
+  return Array.from({ length: 12 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+}
 
 const athleteSchema = z.object({
   name: z.string().min(2),
@@ -72,7 +97,6 @@ const teamSchema = z.object({
 const coachSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  password: z.string().min(6),
   teamId: z.string().optional()
 });
 
@@ -89,6 +113,16 @@ const matchStatSchema = z.object({
 
 router.get("/health", (req, res) => {
   res.json({ ok: true, service: "handball-team-manager" });
+});
+
+router.get("/config/emailjs", (req, res) => {
+  res.json({
+    enabled: Boolean(process.env.EMAILJS_PUBLIC_KEY && process.env.EMAILJS_SERVICE_ID && process.env.EMAILJS_TEMPLATE_ID),
+    publicKey: process.env.EMAILJS_PUBLIC_KEY || "",
+    serviceId: process.env.EMAILJS_SERVICE_ID || "",
+    templateId: process.env.EMAILJS_TEMPLATE_ID || "",
+    loginUrl: process.env.APP_BASE_URL ? `${process.env.APP_BASE_URL.replace(/\/$/, "")}/login.html` : "/login.html"
+  });
 });
 
 router.get("/dashboard", async (req, res, next) => {
@@ -229,8 +263,18 @@ router.get("/coaches", async (req, res, next) => {
 
 router.post("/auth/register-trainer", async (req, res, next) => {
   try {
+    const admin = requireAdmin(req);
     const input = coachSchema.parse(req.body);
-    res.status(201).json(await registerCoach(input));
+    const temporaryPassword = generateTemporaryPassword();
+    const trainer = await registerCoach({ ...input, password: temporaryPassword });
+    res.status(201).json({
+      ...trainer,
+      temporaryPassword,
+      createdBy: {
+        name: admin.name,
+        email: admin.email
+      }
+    });
   } catch (error) {
     next(error);
   }

@@ -32,7 +32,7 @@ app.use((error, req, res, next) => {
   }
 
   console.error(error);
-  res.status(500).json({ error: error.message || "Erro interno do servidor" });
+  res.status(error.statusCode || 500).json({ error: error.message || "Erro interno do servidor" });
 });
 
 if (!process.env.VERCEL) {
