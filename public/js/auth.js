@@ -2,7 +2,18 @@ class AuthManager {
   constructor() {
     this.token = localStorage.getItem('token');
     this.refreshToken = localStorage.getItem('refreshToken');
-    this.user = JSON.parse(localStorage.getItem('user') || 'null');
+
+    try {
+      this.user = JSON.parse(localStorage.getItem('user') || 'null');
+    } catch (error) {
+      console.warn('Dados de sessao corrompidos no localStorage, a limpar:', error);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      this.token = null;
+      this.refreshToken = null;
+      this.user = null;
+    }
   }
 
   async login(email, password) {
